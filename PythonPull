@@ -1,0 +1,88 @@
+#Download File
+#Open Chrome to DHS Website
+import selenium
+from selenium import webdriver
+import time
+driver = webdriver.Chrome(executable_path="/Users/piercedeamer/Desktop/chromedriver")
+
+driver.get("https://apfs-cloud.dhs.gov/forecast/")
+
+driver.maximize_window()
+
+time.sleep(12)
+
+#download CSV
+driver.find_element_by_xpath("/html/body/main/div/div[2]/div/div/div/div/div[2]/div[1]/div[1]/div/button[1]").click()
+
+time.sleep(5)
+
+driver.quit()
+
+
+#grab the most recent file and 
+from datetime import date
+import glob
+import os
+
+files_path = os.path.join("/Users/piercedeamer/Downloads/", '*')
+files = sorted(
+    glob.iglob(files_path), key=os.path.getctime, reverse=True) 
+
+new_csv = files[0]
+
+
+#Save that csv file in a new folder with a new name
+import datetime
+today = datetime.datetime.now().strftime("%Y%m%d") 
+the_date = today[0:4] + "_" + today[4:6] + "_" + today[6:]
+os.rename(new_csv,"/Users/piercedeamer/Desktop/DHS CSVs/" + the_date + ".csv")
+
+
+#concatenate the files in the directory
+import pandas as pd
+from glob import glob
+from datetime import date 
+import time
+import datetime
+
+the_date = today[0:4] + "_" + today[4:6] + "_" + today[6:]
+
+stock_files = sorted(glob('/Users/piercedeamer/Desktop/DHS CSVs/2020_*.csv'))
+
+df1 = pd.concat((pd.read_csv(file).assign(filename = file)
+          for file in stock_files), ignore_index = True)
+
+aa = list(df1['APFS Number'].drop_duplicates(keep=False))
+
+df2 = df1.loc[df1['APFS Number'].isin(aa)]
+
+df3 = df2.drop(columns = ['filename'])
+
+df3.to_excel('/Users/piercedeamer/Desktop/output/' + the_date + 'results.xlsx', index=False)
+
+#send document via email
+import smtplib
+from email.message import EmailMessage
+
+SENDER_EMAIL = "###"
+APP_PASSWORD = "###"
+
+the_logical_date = datetime.datetime.now()
+xx = the_logical_date.strftime('%x')
+def send_mail_with_excel(recipient_email, subject, content, excel_file):
+    msg = EmailMessage()
+    msg['Subject'] = subject
+    msg['From'] = SENDER_EMAIL
+    msg['To'] = recipient_email
+    msg.set_content(content)
+
+    with open("/Users/piercedeamer/Desktop/output/"+the_date+"results.xlsx", 'rb') as f:
+        file_data = f.read()
+    msg.add_attachment(file_data, maintype="application", subtype="xlsx", filename= the_date+"_results.xlsx")
+
+    with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
+        smtp.login(SENDER_EMAIL, APP_PASSWORD)
+        smtp.send_message(msg)
+        
+    
+send_mail_with_excel("####", xx +" Report", "Please see the attached report. If you have any questions/comments, please send them to pdeamer@avantusfederal.com.\n-Pierce Deamer","/Users/piercedeamer/Desktop/output/""results.xlsx")
